@@ -22,6 +22,6 @@ public:
 private:
     GameState& m_gameState;
     uint32_t startTime;
-    uint32_t endTime;
-    float deltaTime;
+    uint32_t endTime{};
+    float deltaTime{};
 };
