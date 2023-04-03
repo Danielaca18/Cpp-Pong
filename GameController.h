@@ -16,9 +16,12 @@ public:
     void resetGame();
     void resetPaddles();
     void resetBall(int dir);
-    void checkCollision();
+    int checkCollision(float ballXDelta, float ballYDelta);
     void update();
     int checkWin() const;
 private:
     GameState& m_gameState;
+    uint32_t startTime;
+    uint32_t endTime;
+    float deltaTime;
 };

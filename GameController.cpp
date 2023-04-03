@@ -1,9 +1,9 @@
 #include "GameController.h"
 
-const int PADDLE_SPEED = 5;
+const int PADDLE_SPEED = 300;
 const int PADDLE_WIDTH = 15;
 const int PADDLE_HEIGHT = 60;
-const int BALL_SPEED = 5;
+const int BALL_SPEED = 500;
 const int BALL_SIZE = 10;
 const int SCREEN_WIDTH = 640;
 const int SCREEN_HEIGHT = 480;
@@ -15,6 +15,9 @@ const int MAX_ANGLE = 45;
  * @param gameView View of game
  */
 GameController::GameController(GameState& gameState):m_gameState(gameState) {
+    //
+    startTime = SDL_GetTicks64();
+
     // Initialize paddle positions
     resetPaddles();
 
@@ -140,30 +143,38 @@ void GameController::resetBall(int dir = 0) {
 /**
  * Checks for collisions with ball
  */
-void GameController::checkCollision() {
+int GameController::checkCollision(float ballXDelta, float ballYDelta) {
+    bool collisionDetected = false;
+
     // Check player 1 paddle and ball collision
-    if (((m_gameState.ball.x + BALL_SIZE) >= (m_gameState.player1.x - PADDLE_WIDTH/(double)2)) &&
-        ((m_gameState.ball.x - BALL_SIZE) <= (m_gameState.player1.x + PADDLE_WIDTH/(double)2))) {
-        if ((m_gameState.ball.y + BALL_SIZE >= (m_gameState.player1.y - PADDLE_HEIGHT/(double)2)) &&
-            (m_gameState.ball.y - BALL_SIZE <= (m_gameState.player1.y + PADDLE_HEIGHT/(double)2))) {
+    if (((m_gameState.ball.x + ballXDelta + BALL_SIZE) >= (m_gameState.player1.x - PADDLE_WIDTH/(double)2)) &&
+        ((m_gameState.ball.x + ballXDelta - BALL_SIZE) <= (m_gameState.player1.x + PADDLE_WIDTH/(double)2))) {
+        if ((m_gameState.ball.y + ballYDelta + BALL_SIZE >= (m_gameState.player1.y - PADDLE_HEIGHT/(double)2)) &&
+            (m_gameState.ball.y + ballYDelta - BALL_SIZE <= (m_gameState.player1.y + PADDLE_HEIGHT/(double)2))) {
             m_gameState.ball.x += PADDLE_WIDTH/(double)2;
             paddleCollision(1);
+            collisionDetected = true;
         }
     }
 
     // Check player 2 paddle and ball collision
-    if (((m_gameState.ball.x + BALL_SIZE) >= (m_gameState.player2.x - PADDLE_WIDTH/(double)2)) &&
-        ((m_gameState.ball.x - BALL_SIZE) <= (m_gameState.player2.x + PADDLE_WIDTH/(double)2))) {
-        if ((m_gameState.ball.y + BALL_SIZE >= (m_gameState.player2.y - PADDLE_HEIGHT/(double)2)) &&
-            (m_gameState.ball.y - BALL_SIZE <= (m_gameState.player2.y + PADDLE_HEIGHT/(double)2))) {
+    if (((m_gameState.ball.x + ballXDelta + BALL_SIZE) >= (m_gameState.player2.x - PADDLE_WIDTH/(double)2)) &&
+        ((m_gameState.ball.x + ballXDelta - BALL_SIZE) <= (m_gameState.player2.x + PADDLE_WIDTH/(double)2))) {
+        if ((m_gameState.ball.y + ballYDelta + BALL_SIZE >= (m_gameState.player2.y - PADDLE_HEIGHT/(double)2)) &&
+            (m_gameState.ball.y + ballYDelta - BALL_SIZE <= (m_gameState.player2.y + PADDLE_HEIGHT/(double)2))) {
             m_gameState.ball.x -= PADDLE_WIDTH/(double)2;
             paddleCollision(2);
+            collisionDetected = true;
         }
     }
 
     // Check for collision of ball with top or bottom of screen
-    if (m_gameState.ball.y < 0 || m_gameState.ball.y + BALL_SIZE > SCREEN_HEIGHT) {
-        m_gameState.ballYDir *= -1;
+    if (m_gameState.ball.y + ballYDelta < 0) {
+        m_gameState.ballYDir = 1;
+        collisionDetected = true;
+    } else if (m_gameState.ball.y + ballYDelta + BALL_SIZE > SCREEN_HEIGHT) {
+        m_gameState.ballYDir = -1;
+        collisionDetected = true;
     }
 }
 
@@ -185,29 +196,40 @@ int GameController::checkWin() const {
  * Updates game state values each frame
  */
 void GameController::update() {
+    //
+    endTime = SDL_GetTicks64();
+    deltaTime = (endTime - startTime) / 1000.0f;
+    SDL_Log("%f", deltaTime);
+
+    //
+    float player1YDelta = m_gameState.player1YDir * BALL_SPEED * deltaTime;
+    float player2YDelta = m_gameState.player2YDir * BALL_SPEED * deltaTime;
+    float ballXDelta = m_gameState.ballXDir * BALL_SPEED * deltaTime;
+    float ballYDelta = m_gameState.ballYDir * BALL_SPEED * deltaTime;
+
     // Check for ball collisions
-    checkCollision();
+    checkCollision(ballXDelta, ballYDelta);
 
     // Move ball
     if (m_gameState.play) {
         SDL_Log("%s", std::to_string(m_gameState.ballYDir).c_str());
         SDL_Log("%s", std::to_string(m_gameState.ballXDir).c_str());
-        m_gameState.ball.y += m_gameState.ballYDir / (float)(BALL_SPEED * 2);
-        m_gameState.ball.x += m_gameState.ballXDir / (float)(BALL_SPEED * 2);
+        m_gameState.ball.y += ballYDelta;
+        m_gameState.ball.x += ballXDelta;
     }
 
     // Move player 1 paddle within boundaries
-    if (m_gameState.player1YDir > 0 && ((m_gameState.player1.y + PADDLE_HEIGHT) < SCREEN_HEIGHT - 10)) {
-        m_gameState.player1.y += m_gameState.player1YDir / ((float) PADDLE_SPEED * 2);
-    } else if (m_gameState.player1YDir < 0 && ((m_gameState.player1.y - PADDLE_HEIGHT / (float) 2) > -18)) {
-        m_gameState.player1.y += m_gameState.player1YDir / ((float) PADDLE_SPEED * 2);
+    if (m_gameState.player1YDir > 0 && ((m_gameState.player1.y + player1YDelta + PADDLE_HEIGHT) < SCREEN_HEIGHT - 10)) {
+        m_gameState.player1.y += player1YDelta;
+    } else if (m_gameState.player1YDir < 0 && ((m_gameState.player1.y + player1YDelta - PADDLE_HEIGHT / (float) 2) > -18)) {
+        m_gameState.player1.y += player1YDelta;
     }
 
     // Move player 1 paddle within boundaries
-    if (m_gameState.player2YDir > 0 && ((m_gameState.player2.y + PADDLE_HEIGHT) < SCREEN_HEIGHT-10)) {
-        m_gameState.player2.y += m_gameState.player2YDir / ((float)PADDLE_SPEED * 2);
-    } else if (m_gameState.player2YDir < 0 && ((m_gameState.player2.y - PADDLE_HEIGHT/(double)2) > -18)) {
-        m_gameState.player2.y += m_gameState.player2YDir / ((float)PADDLE_SPEED * 2);
+    if (m_gameState.player2YDir > 0 && ((m_gameState.player2.y + player2YDelta + PADDLE_HEIGHT) < SCREEN_HEIGHT-10)) {
+        m_gameState.player2.y += player2YDelta;
+    } else if (m_gameState.player2YDir < 0 && ((m_gameState.player2.y + player2YDelta - PADDLE_HEIGHT/(double)2) > -18)) {
+        m_gameState.player2.y += player2YDelta;
     }
 
     // Check for goal
@@ -244,4 +266,8 @@ void GameController::update() {
         m_gameState.player1Score = 0;
         m_gameState.player2Score = 0;
     }
+
+    //
+    startTime = endTime;
+
 }

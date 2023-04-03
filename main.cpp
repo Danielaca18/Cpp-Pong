@@ -11,7 +11,7 @@ const int SCREEN_HEIGHT = 480;
 // SDL does not support overriding, so command line args must be redundantly included
 int main(int argv, char** args) {
     // Init sdl and sdl_ttf
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO || SDL_INIT_TIMER) < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_ERROR, "SDL failed to initialize: %s", SDL_GetError());
         exit(EXIT_FAILURE);
     }
